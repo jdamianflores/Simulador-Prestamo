@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Simulador de Préstamos</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f4f6f8;
+        color: #17202a;
+      }
+      .wrap {
+        max-width: 950px;
+        margin: auto;
+        padding: 24px 16px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 18px;
+        padding: 22px;
+        margin-bottom: 18px;
+        box-shadow: 0 8px 30px #00000012;
+      }
+      h1 {
+        margin: 0 0 6px;
+      }
+      .sub {
+        color: #667085;
+        margin-top: 0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+      }
+      label {
+        display: block;
+        font-weight: bold;
+        font-size: 14px;
+        margin-bottom: 7px;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 13px;
+        border: 1px solid #d0d5dd;
+        border-radius: 10px;
+        font-size: 16px;
+        background: #fff;
+      }
+      button {
+        width: 100%;
+        margin-top: 18px;
+        padding: 14px;
+        border: 0;
+        border-radius: 10px;
+        background: #17202a;
+        color: #fff;
+        font-size: 16px;
+        font-weight: bold;
+      }
+      .info {
+        margin-top: 14px;
+        padding: 12px;
+        background: #f8fafc;
+        border-radius: 10px;
+        color: #475467;
+        font-size: 14px;
+      }
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .metric {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 15px;
+      }
+      .metric span {
+        display: block;
+        color: #667085;
+        font-size: 13px;
+        margin-bottom: 5px;
+      }
+      .metric strong {
+        font-size: 21px;
+      }
+      .table {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 650px;
+      }
+      th,
+      td {
+        padding: 11px 9px;
+        border-bottom: 1px solid #eaecf0;
+        text-align: right;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: center;
+      }
+      th {
+        font-size: 13px;
+        color: #667085;
+        background: #f8fafc;
+      }
+      .note {
+        color: #667085;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .hide {
+        display: none;
+      }
+      @media (max-width: 700px) {
+        .grid,
+        .summary {
+          grid-template-columns: 1fr;
+        }
+        .card {
+          padding: 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>Simulador de Préstamos</h1>
+        <p class="sub">Calcula cuotas y cronogramas según la modalidad.</p>
+        <div class="grid">
+          <div>
+            <label>Monto (S/)</label
+            ><input id="monto" type="number" min="0" step="0.01" value="4000" />
+          </div>
+          <div>
+            <label>Interés mensual (%)</label
+            ><input id="tasa" type="number" min="0" step="0.01" value="3" />
+          </div>
+          <div>
+            <label>Meses</label
+            ><input id="meses" type="number" min="1" step="1" value="5" />
+          </div>
+          <div>
+            <label>Modalidad</label
+            ><select id="modo">
+              <option value="cuota">Cuota fija</option>
+              <option value="bullet" selected>
+                Capital al final
+              </option>
+            </select>
+          </div>
+        </div>
+        <div id="info" class="info"></div>
+        <button onclick="simular()">Calcular</button>
+      </div>
+      <div class="card">
+        <div class="summary">
+          <div class="metric">
+            <span id="lbl">Pago mensual</span
+            ><strong id="cuota">S/ 0.00</strong>
+          </div>
+          <div class="metric">
+            <span>Total pagado</span><strong id="total">S/ 0.00</strong>
+          </div>
+          <div class="metric">
+            <span>Interés ganado</span><strong id="interes">S/ 0.00</strong>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Cronograma</h2>
+        <div class="table">
+          <table>
+            <thead>
+              <tr>
+                <th>Mes</th>
+                <th>Saldo inicial</th>
+                <th>Interés</th>
+                <th>Amortización</th>
+                <th>Pago</th>
+                <th>Saldo final</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <p class="note">
+          Cuota fija: el interés se calcula sobre el saldo pendiente. <br>
+          Capital al final + Interés mensual: el interés se calcula siempre sobre el
+          monto original y el capital se devuelve en el último mes.
+        </p>
+      </div>
+    </div>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const money = (n) =>
+        "S/ " +
+        n.toLocaleString("es-PE", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      function simular() {
+        const M = +$("monto").value,
+          T = +$("tasa").value,
+          N = +$("meses").value,
+          modo = $("modo").value;
+        if (M <= 0 || T < 0 || N < 1) {
+          $("rows").innerHTML =
+            '<tr><td colspan="6" style="text-align:center">Ingresa valores válidos.</td></tr>';
+          return;
+        }
+        const r = T / 100;
+        let saldo = M,
+          total = 0,
+          ints = 0,
+          cuota = 0,
+          rows = "";
+        if (modo === "cuota") {
+          cuota = r === 0 ? M / N : (M * r) / (1 - Math.pow(1 + r, -N));
+          $("lbl").textContent = "Cuota mensual";
+          $("info").innerHTML =
+            "<b>Cuota fija:</b> cada mes pagas capital + interés. El interés baja conforme disminuye el saldo.";
+          for (let i = 1; i <= N; i++) {
+            let ini = saldo,
+              inter = ini * r,
+              am = cuota - inter,
+              pago = cuota;
+            if (i === N) {
+              am = ini;
+              pago = am + inter;
+            }
+            saldo = Math.max(0, ini - am);
+            total += pago;
+            ints += inter;
+            rows += fila(i, ini, inter, am, pago, saldo);
+          }
+        } else {
+          cuota = M * r;
+          $("lbl").textContent = "Interés mensual";
+          $("info").innerHTML =
+            "<b>Interés mensual + capital al final:</b> cada mes recibes solo el interés. En el último mes recibes interés + todo el capital.";
+          for (let i = 1; i <= N; i++) {
+            let inter = cuota,
+              am = i === N ? M : 0,
+              pago = inter + am,
+              totalSaldo = i === N ? 0 : M;
+            total += pago;
+            ints += inter;
+            rows += fila(i, M, inter, am, pago, totalSaldo);
+          }
+        }
+        $("cuota").textContent = money(cuota);
+        $("total").textContent = money(total);
+        $("interes").textContent = money(ints);
+        $("rows").innerHTML = rows;
+      }
+      function fila(i, a, b, c, d, e) {
+        return `<tr><td>${i}</td><td>${money(a)}</td><td>${money(b)}</td><td>${money(c)}</td><td>${money(d)}</td><td>${money(e)}</td></tr>`;
+      }
+      ["monto", "tasa", "meses", "modo"].forEach((id) =>
+        $(id).addEventListener("input", simular),
+      );
+      simular();
+    </script>
+  </body>
+</html>
