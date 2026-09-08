@@ -53,16 +53,39 @@
         font-size: 16px;
         background: #fff;
       }
-      button {
-        width: 100%;
+      .actions {
+        display: flex;
+        gap: 12px;
         margin-top: 18px;
+      }
+      button {
+        flex: 1;
         padding: 14px;
         border: 0;
         border-radius: 10px;
-        background: #17202a;
-        color: #fff;
         font-size: 16px;
         font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-primary {
+        background: #17202a;
+        color: #fff;
+      }
+      .btn-secondary {
+        background: #f1f5f9;
+        color: #475467;
+        border: 1px solid #d0d5dd;
+      }
+      .btn-secondary:hover {
+        background: #e2e8f0;
+      }
+      button:disabled {
+        background: #94a3b8;
+        color: #f1f5f9;
+        cursor: not-allowed;
+        opacity: 0.7;
+        border: none;
       }
       .info {
         margin-top: 14px;
@@ -119,13 +142,13 @@
         font-size: 13px;
         line-height: 1.5;
       }
-      .hide {
-        display: none;
-      }
       @media (max-width: 700px) {
         .grid,
         .summary {
           grid-template-columns: 1fr;
+        }
+        .actions {
+          flex-direction: column;
         }
         .card {
           padding: 18px;
@@ -137,44 +160,55 @@
     <div class="wrap">
       <div class="card">
         <h1>Simulador de préstamos</h1>
-        <p class="sub">Calcula cuotas y cronogramas según la modalidad de pago.</p>
+        <p class="sub">
+          Calcula cuotas y cronogramas según la modalidad de pago.
+        </p>
         <div class="grid">
+         
           <div>
-            <label>Monto (S/)</label
-            ><input id="monto" type="number" min="0" step="0.01" value="" />
+            <label>Monto (S/)</label>
+            <input id="monto" type="text" inputmode="decimal" placeholder="Ej. 5000" 
+                   oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'); validarYCalcular();" />
           </div>
+
           <div>
-            <label>Interés mensual (%)</label
-            ><input id="tasa" type="number" min="0" step="0.01" value="" />
+            <label>Interés mensual (%)</label>
+            <input id="tasa" type="text" inputmode="decimal" placeholder="Ej. 2.5" 
+                   oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'); if(parseFloat(this.value) > 100) this.value = '100'; validarYCalcular();" />
           </div>
+
           <div>
-            <label>Meses</label
-            ><input id="meses" type="number" min="1" step="1" value="" />
+            <label>Meses</label>
+            <input id="meses" type="text" inputmode="numeric" placeholder="Ej. 12" 
+                   oninput="this.value = this.value.replace(/[^0-9]/g, ''); validarYCalcular();" />
           </div>
+
           <div>
-            <label>Modalidad</label
-            ><select id="modo">
+            <label>Modalidad</label>
+            <select id="modo" onchange="validarYCalcular()">
               <option value="cuota">Cuota fija</option>
-              <option value="bullet" selected>
-                Capital al final
-              </option>
+              <option value="bullet" selected>Capital al final</option>
             </select>
           </div>
         </div>
-        <div id="info" class="info"></div>
-        <button onclick="simular()">Calcular</button>
+        <div id="info" class="info" style="display: none;"></div>
+        
+        <div class="actions">
+          <button id="btnLimpiar" class="btn-secondary" onclick="limpiarFormulario()">Limpiar datos</button>
+          <button id="btnCalcular" class="btn-primary" onclick="simular()" disabled>Calcular</button>
+        </div>
       </div>
+      
       <div class="card">
         <div class="summary">
           <div class="metric">
-            <span id="lbl">Pago mensual</span
-            ><strong id="cuota">S/ 0.00</strong>
+            <span id="lbl">Pago mensual</span><strong id="cuota">S/ 0.00</strong>
           </div>
           <div class="metric">
             <span>Total pagado</span><strong id="total">S/ 0.00</strong>
           </div>
           <div class="metric">
-            <span>Interés total</span><strong id="interes">S/ 0.00</strong>
+            <span>Total intereses</span><strong id="interes">S/ 0.00</strong>
           </div>
         </div>
       </div>
@@ -196,9 +230,9 @@
           </table>
         </div>
         <p class="note">
-          Cuota fija: el interés se calcula sobre el saldo pendiente. <br>
-          Capital al final + Interés mensual: el interés se calcula siempre sobre el
-          monto original y el capital se devuelve en el último mes.
+          Cuota fija: el interés se calcula sobre el saldo pendiente. <br />
+          Capital al final + Interés mensual: el interés se calcula siempre
+          sobre el monto original y el capital se devuelve en el último mes.
         </p>
       </div>
     </div>
@@ -210,23 +244,57 @@
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         });
+
+      function validarYCalcular() {
+        const M = +$("monto").value,
+              T = $("tasa").value,
+              N = +$("meses").value;
+
+        const esValido = M > 0 && T !== "" && parseFloat(T) >= 0 && N >= 1;
+        $("btnCalcular").disabled = !esValido;
+
+        if (esValido) {
+          $("info").style.display = "block";
+          simular();
+        } else {
+          resetResultados();
+        }
+      }
+
+      function limpiarFormulario() {
+        $("monto").value = "";
+        $("tasa").value = "";
+        $("meses").value = "";
+        $("modo").value = "bullet";
+        $("btnCalcular").disabled = true;
+        resetResultados();
+      }
+
+      function resetResultados() {
+        $("info").style.display = "none";
+        $("info").innerHTML = "";
+        $("cuota").textContent = "S/ 0.00";
+        $("total").textContent = "S/ 0.00";
+        $("interes").textContent = "S/ 0.00";
+        $("lbl").textContent = "Pago mensual";
+        $("rows").innerHTML = '<tr><td colspan="6" style="text-align:center">Ingresa valores para calcular.</td></tr>';
+      }
+
       function simular() {
         const M = +$("monto").value,
           T = +$("tasa").value,
           N = +$("meses").value,
           modo = $("modo").value;
 
-        if (M <= 0 || T < 0 || N < 1) {
-          $("rows").innerHTML =
-            '<tr><td colspan="6" style="text-align:center">Ingresa valores para calcular.</td></tr>';
-          return;
-        }
+        if (M <= 0 || T < 0 || N < 1) return;
+        
         const r = T / 100;
         let saldo = M,
           total = 0,
           ints = 0,
           cuota = 0,
           rows = "";
+          
         if (modo === "cuota") {
           cuota = r === 0 ? M / N : (M * r) / (1 - Math.pow(1 + r, -N));
           $("lbl").textContent = "Cuota mensual";
@@ -266,13 +334,12 @@
         $("interes").textContent = money(ints);
         $("rows").innerHTML = rows;
       }
+      
       function fila(i, a, b, c, d, e) {
         return `<tr><td>${i}</td><td>${money(a)}</td><td>${money(b)}</td><td>${money(c)}</td><td>${money(d)}</td><td>${money(e)}</td></tr>`;
       }
-      ["monto", "tasa", "meses", "modo"].forEach((id) =>
-        $(id).addEventListener("input", simular),
-      );
-      simular();
+
+      resetResultados();
     </script>
   </body>
 </html>
